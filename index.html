@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treino de Vocabulário Interativo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 80%;
+            max-width: 800px;
+            height: 300px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centraliza o texto inicial */
+            border: 5px solid #ccc;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        #word-card {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            position: absolute;
+            white-space: nowrap;
+            will-change: transform;
+        }
+
+        #controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        button:hover { background-color: #0056b3; }
+        
+        #status {
+            margin-top: 15px;
+            font-size: 1.1rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .feedback-verde { background-color: #d4edda !important; border-color: #28a745 !important; }
+        .feedback-laranja { background-color: #fff3cd !important; border-color: #ffc107 !important; }
+        .feedback-vermelho { background-color: #f8d7da !important; border-color: #dc3545 !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="word-card">Clique em Iniciar</div>
+    </div>
+
+    <div id="controls">
+        <button id="btn-start" onclick="iniciarJogo()">Iniciar Treino</button>
+        <div id="status">Selecione "Iniciar" para começar o bloco de 10 palavras.</div>
+    </div>
+
+    <script>
+        // Banco de dados revisado e sem erros de sintaxe
+        const bancoPalavrasCompleto = [
+            { pt: "Começar", es: ["comenzar", "empezar"] },
+            { pt: "Bonito", es: ["guapo", "hermoso"] },
+            { pt: "Casa", es: ["casa"] },
+            { pt: "GuardaChuva", es: ["paraguas"] },
+            { pt: "Ciumento", es: ["celoso", "celosa"] },
+            { pt: "Tudo Bem?", es: ["qué tal", "que tal"] },
+            { pt: "Quebrado", es: ["roto"] },
+            { pt: "Janeiro", es: ["enero"] },
+            { pt: "Vermelho", es: ["rojo"] },
+            { pt: "Aniversário", es: ["cumpleaños", "cumple años"] }
+        ];
+
+        let indiceInicioBloco = 0;
+        let palavrasDoBlocoAtual = [];
+        let listaRepescagem = [];
+        let emRepescagem = false;
+        let indicePalavraAtual = 0;
+        let palavraAtual = null;
+
+        const container = document.getElementById('game-container');
+        const card = document.getElementById('word-card');
+        let posicaoX = 0;
+        let idAnimacao = null;
+        const velocidade = 1.5; 
+
+        // Configuração do microfone com tratamento de erro robusto para ambiente local
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let reconhecedor = null;
+
+        if (Recognition) {
+            reconhecedor = new Recognition();
+            reconhecedor.lang = 'es-ES'; 
+            reconhecedor.continuous = true;
+            reconhecedor.interimResults = false;
+
+            reconhecedor.onresult = (event) => {
+                const textoFalado = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                verificarResposta(textoFalado);
+            };
+
+            reconhecedor.onend = () => {
+                if (palavraAtual) AtivarMicrofone();
+            };
+        }
+
+        function AtivarMicrofone() {
+            if (reconhecedor) {
+                try { 
+                    reconhecedor.start(); 
+                } catch(e) { 
+                    console.log("Microfone bloqueado pelo navegador por segurança local. Contornando..."); 
+                }
+            }
+        }
+
+        function obterDistanciaLevenshtein(a, b) {
+            const matriz = [];
+            for (let i = 0; i <= b.length; i++) matriz[i] = [i];
+            for (let j = 0; j <= a.length; j++) matriz[0][j] = j;
+
+            for (let i = 1; i <= b.length; i++) {
+                for (let j = 1; j <= a.length; j++) {
+                    if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                        matriz[i][j] = matriz[i - 1][j - 1];
+                    } else {
+                        matriz[i][j] = Math.min(
+                            matriz[i - 1][j - 1] + 1, 
+                            matriz[i][j - 1] + 1,     
+                            matriz[i - 1][j] + 1      
+                        );
+                    }
+                }
+            }
+            return matriz[b.length][a.length];
+        }
+
+        function verificarAproximidade(palavraFalada, alternativasCorretas) {
+            for (let correta of alternativasCorretas) {
+                const distancia = obterDistanciaLevenshtein(palavraFalada, correta.toLowerCase());
+                const toleranciaMaxima = correta.length <= 4 ? 1 : 2; 
+                if (distancia <= toleranciaMaxima) return true;
+            }
+            return false;
+        }
+
+        function iniciarJogo() {
+            document.getElementById('btn-start').style.display = 'none';
+            container.style.justifyContent = 'flex-start'; // Alinha à esquerda para o cálculo de translação funcionar
+            emRepescagem = false;
+            listaRepescagem = [];
+            indicePalavraAtual = 0;
+            
+            palavrasDoBlocoAtual = bancoPalavrasCompleto.slice(indiceInicioBloco, indiceInicioBloco + 10);
+            
+            if (palavrasDoBlocoAtual.length === 0) {
+                container.style.justifyContent = 'center';
+                card.style.transform = 'none';
+                atualizarStatus("Parabéns! Você concluiu todas as palavras!");
+                document.getElementById('btn-start').style.display = 'inline-block';
+                indiceInicioBloco = 0;
+                return;
+            }
+
+            AtivarMicrofone();
+            proximaPalavra();
+        }
+
+        function proximaPalavra() {
+            limparFeedbackVisual();
+            cancelAnimationFrame(idAnimacao);
+
+            let listaAlvo = emRepescagem ? listaRepescagem : palavrasDoBlocoAtual;
+
+            if (indicePalavraAtual >= listaAlvo.length) {
+                if (!emRepescagem && listaRepescagem.length > 0) {
+                    emRepescagem = true;
+                    indicePalavraAtual = 0;
+                    atualizarStatus("Fim do bloco! Iniciando repescagem das laranjas...");
+                    setTimeout(proximaPalavra, 2000);
+                } else {
+                    atualizarStatus(`Bloco concluído! Mudando de bloco...`);
+                    indiceInicioBloco += 10;
+                    setTimeout(iniciarJogo, 3000);
+                }
+                return;
+            }
+
+            palavraAtual = listaAlvo[indicePalavraAtual];
+            card.innerText = palavraAtual.pt;
+            
+            posicaoX = container.clientWidth;
+            card.style.transform = `translateX(${posicaoX}px)`;
+
+            atualizarStatus(emRepescagem ? "Repescagem! Fale em espanhol:" : "Fale em espanhol:");
+            animarEsteira();
+        }
+
+        function animarEsteira() {
+            posicaoX -= velocidade;
+            card.style.transform = `translateX(${posicaoX}px)`;
+
+            if (posicaoX + card.offsetWidth < 0) {
+                processarErro();
+            } else {
+                idAnimacao = requestAnimationFrame(animarEsteira);
+            }
+        }
+
+        function verificarResposta(falado) {
+            if (!palavraAtual) return;
+            
+            if (verificarAproximidade(falado, palavraAtual.es)) {
+                processarAcerto();
+            } else {
+                processarErro();
+            }
+        }
+
+        function processarAcerto() {
+            cancelAnimationFrame(idAnimacao);
+            container.className = "feedback-verde";
+            indicePalavraAtual++;
+            palavraAtual = null; 
+            setTimeout(proximaPalavra, 1200); 
+        }
+
+        function processarErro() {
+            cancelAnimationFrame(idAnimacao);
+            
+            if (!emRepescagem) {
+                container.className = "feedback-laranja";
+                if (!listaRepescagem.includes(palavraAtual)) {
+                    listaRepescagem.push(palavraAtual);
+                }
+            } else {
+                container.className = "feedback-vermelho";
+            }
+
+            indicePalavraAtual++;
+            palavraAtual = null;
+            setTimeout(proximaPalavra, 1200);
+        }
+
+        function limparFeedbackVisual() {
+            container.className = "";
+        }
+
+        function atualizarStatus(texto) {
+            document.getElementById('status').innerText = texto;
+        }
+    </script>
+</body>
+</html>
