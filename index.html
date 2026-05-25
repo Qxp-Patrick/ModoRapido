@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: ##FFFFFF;
+            background-color: #f0f2f5;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -18,9 +18,9 @@
         }
 
         #game-container {
-            width: 90%;
-            max-width: 900px;
-            height: 200px;
+            width: 80%;
+            max-width: 800px;
+            height: 300px;
             background-color: white;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
@@ -28,13 +28,13 @@
             overflow: hidden;
             display: flex;
             align-items: center;
-            justify-content: center; /* Centraliza o texto inicial */
+            justify-content: center;
             border: 5px solid #ccc;
             transition: background-color 0.3s, border-color 0.3s;
         }
 
         #word-card {
-            font-size: 2.0rem;
+            font-size: 2.5rem;
             font-weight: bold;
             color: #333;
             position: absolute;
@@ -85,7 +85,6 @@
     </div>
 
     <script>
-        // Banco de dados revisado e sem erros de sintaxe
         const bancoPalavrasCompleto = [
             { pt: "Começar", es: ["comenzar", "empezar"] },
             { pt: "Bonito", es: ["guapo", "hermoso"] },
@@ -96,7 +95,7 @@
             { pt: "Quebrado", es: ["roto"] },
             { pt: "Janeiro", es: ["enero"] },
             { pt: "Vermelho", es: ["rojo"] },
-            { pt: "Aniversário", es: ["cumpleaños", "cumple años"] }
+            { pt: "Aniversário", es: ["cumpleaños", "cumple anos"] }
         ];
 
         let indiceInicioBloco = 0;
@@ -112,32 +111,56 @@
         let idAnimacao = null;
         const velocidade = 1.5; 
 
-        // Configuração do microfone com tratamento de erro robusto para ambiente local
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let reconhecedor = null;
+        let microfoneAtivo = false;
 
         if (Recognition) {
             reconhecedor = new Recognition();
             reconhecedor.lang = 'es-ES'; 
-            reconhecedor.continuous = true;
+            // Mudamos para false para o celular processar uma palavra de cada vez e fechar limpo
+            reconhecedor.continuous = false; 
             reconhecedor.interimResults = false;
 
             reconhecedor.onresult = (event) => {
-                const textoFalado = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                const textoFalado = event.results[0][0].transcript.trim().toLowerCase();
                 verificarResposta(textoFalado);
             };
 
             reconhecedor.onend = () => {
-                if (palavraAtual) AtivarMicrofone();
+                microfoneAtivo = false;
+                // Só tenta reiniciar se ainda houver uma palavra ativa na tela e não foi respondida
+                if (palavraAtual) {
+                    setTimeout(AtivarMicrofone, 300);
+                }
+            };
+
+            reconhecedor.onerror = (event) => {
+                console.log("Erro no reconhecimento: ", event.error);
+                if (event.error === 'not-allowed') {
+                    atualizarStatus("Permissão de microfone negada.");
+                }
             };
         }
 
         function AtivarMicrofone() {
-            if (reconhecedor) {
+            if (reconhecedor && !microfoneAtivo && palavraAtual) {
                 try { 
                     reconhecedor.start(); 
+                    microfoneAtivo = true;
                 } catch(e) { 
-                    console.log("Microfone bloqueado pelo navegador por segurança local. Contornando..."); 
+                    console.log("Erro ao ligar microfone:", e); 
+                }
+            }
+        }
+
+        function DesativarMicrofone() {
+            if (reconhecedor && microfoneAtivo) {
+                try {
+                    reconhecedor.stop();
+                    microfoneAtivo = false;
+                } catch(e) {
+                    console.log("Erro ao desligar microfone:", e);
                 }
             }
         }
@@ -174,7 +197,7 @@
 
         function iniciarJogo() {
             document.getElementById('btn-start').style.display = 'none';
-            container.style.justifyContent = 'flex-start'; // Alinha à esquerda para o cálculo de translação funcionar
+            container.style.justifyContent = 'flex-start'; 
             emRepescagem = false;
             listaRepescagem = [];
             indicePalavraAtual = 0;
@@ -190,7 +213,6 @@
                 return;
             }
 
-            AtivarMicrofone();
             proximaPalavra();
         }
 
@@ -201,11 +223,12 @@
             let listaAlvo = emRepescagem ? listaRepescagem : palavrasDoBlocoAtual;
 
             if (indicePalavraAtual >= listaAlvo.length) {
+                DesativarMicrofone();
                 if (!emRepescagem && listaRepescagem.length > 0) {
                     emRepescagem = true;
                     indicePalavraAtual = 0;
                     atualizarStatus("Fim do bloco! Iniciando repescagem das laranjas...");
-                    setTimeout(proximaPalavra, 2000);
+                    setTimeout(proximaPalavra, 2500);
                 } else {
                     atualizarStatus(`Bloco concluído! Mudando de bloco...`);
                     indiceInicioBloco += 10;
@@ -221,6 +244,11 @@
             card.style.transform = `translateX(${posicaoX}px)`;
 
             atualizarStatus(emRepescagem ? "Repescagem! Fale em espanhol:" : "Fale em espanhol:");
+            
+            // Força o microfone a iniciar do zero de forma limpa para a nova palavra
+            DesativarMicrofone();
+            setTimeout(AtivarMicrofone, 200);
+            
             animarEsteira();
         }
 
@@ -247,6 +275,7 @@
 
         function processarAcerto() {
             cancelAnimationFrame(idAnimacao);
+            DesativarMicrofone(); // Desliga imediatamente para o celular não captar ruído no feedback
             container.className = "feedback-verde";
             indicePalavraAtual++;
             palavraAtual = null; 
@@ -255,6 +284,7 @@
 
         function processarErro() {
             cancelAnimationFrame(idAnimacao);
+            DesativarMicrofone(); // Desliga imediatamente
             
             if (!emRepescagem) {
                 container.className = "feedback-laranja";
