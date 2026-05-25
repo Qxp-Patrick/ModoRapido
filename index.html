@@ -65,7 +65,7 @@
 
         /* --- TELA DE TREINO --- */
         #treino-area {
-            display: none; /* Escondida por padrão */
+            display: none; 
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -97,6 +97,18 @@
             will-change: transform;
         }
 
+        /* Novo estilo para a dica de repescagem */
+        #dica-repescagem {
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #6c757d;
+            display: none; /* Escondido por padrão */
+        }
+
         #controls {
             margin-top: 20px;
             text-align: center;
@@ -111,6 +123,7 @@
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin: 0 5px;
+            border-radius: 0; /* Botões retangulares */
         }
 
         #btn-start { background-color: #007bff; }
@@ -137,13 +150,13 @@
 
     <div id="menu-container">
         <h2>Escolha um Bloco</h2>
-        <div id="block-list">
-            </div>
+        <div id="block-list"></div>
     </div>
 
     <div id="treino-area">
         <div id="game-container">
             <div id="word-card">Prepare-se...</div>
+            <div id="dica-repescagem"></div> 
         </div>
 
         <div id="controls">
@@ -154,7 +167,6 @@
     </div>
 
     <script>
-        // Banco de dados completo processado a partir da sua lista
         const bancoPalavrasCompleto = [
             { pt: "Começar", es: ["comenzar", "empezar"] },
             { pt: "Bonito", es: ["guapo", "hermoso"] },
@@ -415,6 +427,7 @@
 
         const container = document.getElementById('game-container');
         const card = document.getElementById('word-card');
+        const dicaRepescagem = document.getElementById('dica-repescagem');
         const menuContainer = document.getElementById('menu-container');
         const treinoArea = document.getElementById('treino-area');
         
@@ -422,10 +435,9 @@
         let idAnimacao = null;
         const velocidade = 1.5; 
 
-        // Gera os botões dinamicamente no menu
         function renderizarMenu() {
             const blockList = document.getElementById('block-list');
-            blockList.innerHTML = ''; // Limpa antes de renderizar
+            blockList.innerHTML = ''; 
             
             for (let i = 0; i < bancoPalavrasCompleto.length; i += 10) {
                 let fim = Math.min(i + 10, bancoPalavrasCompleto.length);
@@ -437,7 +449,6 @@
             }
         }
 
-        // Reconhecimento de Voz
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let reconhecedor = null;
         let microfoneAtivo = false;
@@ -479,7 +490,6 @@
             }
         }
 
-        // Função utilitária para limpar pontuação antes de comparar (ex: ¿ ? ¡ !)
         function limparTextoParaComparacao(texto) {
             return texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/gi, '').toLowerCase().trim();
         }
@@ -518,19 +528,17 @@
         }
 
         function prepararBloco(inicio, fim) {
-            // Seleciona a fatia do array
             palavrasDoBlocoAtual = bancoPalavrasCompleto.slice(inicio, fim);
             
-            // Transição de tela
             menuContainer.style.display = 'none';
             treinoArea.style.display = 'flex';
             
-            // Reseta controles da esteira
             document.getElementById('btn-start').style.display = 'inline-block';
             document.getElementById('btn-stop').style.display = 'none';
             container.style.justifyContent = 'center';
             card.innerText = "Clique em Iniciar";
             card.style.transform = 'none';
+            dicaRepescagem.style.display = 'none'; // Garante que começa escondida
             atualizarStatus(`Bloco selecionado. Clique em Iniciar.`);
         }
 
@@ -551,8 +559,8 @@
             
             palavraAtual = null;
             limparFeedbackVisual();
+            dicaRepescagem.style.display = 'none';
             
-            // Volta para a tela de menu
             treinoArea.style.display = 'none';
             menuContainer.style.display = 'flex';
         }
@@ -563,9 +571,10 @@
 
             let listaAlvo = emRepescagem ? listaRepescagem : palavrasDoBlocoAtual;
 
-            // Se terminou as palavras do bloco ou repescagem
             if (indicePalavraAtual >= listaAlvo.length) {
                 DesativarMicrofone();
+                dicaRepescagem.style.display = 'none'; // Esconde a dica na transição
+
                 if (!emRepescagem && listaRepescagem.length > 0) {
                     emRepescagem = true;
                     indicePalavraAtual = 0;
@@ -573,13 +582,21 @@
                     setTimeout(proximaPalavra, 2500);
                 } else {
                     atualizarStatus(`Bloco concluído com sucesso!`);
-                    setTimeout(() => pararJogo("Bloco concluído!"), 2000); // Volta pro menu sozinho
+                    setTimeout(() => pararJogo("Bloco concluído!"), 2000); 
                 }
                 return;
             }
 
             palavraAtual = listaAlvo[indicePalavraAtual];
             card.innerText = palavraAtual.pt;
+            
+            // Lógica para mostrar ou esconder a dica dependendo do modo
+            if (emRepescagem) {
+                dicaRepescagem.innerText = palavraAtual.es.join(" / ");
+                dicaRepescagem.style.display = 'block';
+            } else {
+                dicaRepescagem.style.display = 'none';
+            }
             
             posicaoX = container.clientWidth;
             card.style.transform = `translateX(${posicaoX}px)`;
@@ -648,7 +665,6 @@
             document.getElementById('status').innerText = texto;
         }
 
-        // Inicializa o menu ao carregar a página
         window.onload = renderizarMenu;
 
     </script>
