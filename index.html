@@ -24,7 +24,7 @@
             margin-top: 5vh;
             background-color: white;
             border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: #FFFFFF);
             display: flex;
             flex-direction: column;
             padding: 20px;
@@ -56,26 +56,11 @@
             text-align: left;
             font-weight: bold;
             transition: background-color 0.2s, border-color 0.2s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
         .btn-bloco:hover {
             background-color: #e9ecef;
             border-color: #ced4da;
-        }
-
-        /* Bloco concluído sem erros */
-        .btn-bloco.bloco-perfeito {
-            background-color: #d4edda;
-            border-color: #28a745;
-            color: #155724;
-        }
-        
-        .btn-bloco.bloco-perfeito:hover {
-            background-color: #c3e6cb;
-            border-color: #1e7e34;
         }
 
         /* --- TELA DE TREINO --- */
@@ -112,6 +97,7 @@
             will-change: transform;
         }
 
+        /* Novo estilo para a dica de repescagem */
         #dica-repescagem {
             position: absolute;
             bottom: 15px;
@@ -120,7 +106,7 @@
             font-size: 1.2rem;
             font-weight: bold;
             color: #6c757d;
-            display: none; 
+            display: none; /* Escondido por padrão */
         }
 
         #controls {
@@ -137,7 +123,7 @@
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin: 0 5px;
-            border-radius: 0; 
+            border-radius: 0; /* Botões retangulares */
         }
 
         #btn-start { background-color: #007bff; }
@@ -192,7 +178,7 @@
             { pt: "Janeiro", es: ["enero"] },
             { pt: "Vermelho", es: ["rojo"] },
             { pt: "Aniversário", es: ["cumpleaños", "cumple años"] },
-            { pt: "Distraída", es: ["despistan", "despiste", "despistada"] },
+            { pt: "Distraída", es: ["despistada"] },
             { pt: "Cartão", es: ["tarjeta"] },
             { pt: "Dinheiro", es: ["billete", "plata", "dinero"] },
             { pt: "Sobrancelha", es: ["ceja"] },
@@ -314,9 +300,9 @@
             { pt: "Em excesso", es: ["demasiado", "excesivamente"] },
             { pt: "Isso mesmo", es: ["así es", "exactamente"] },
             { pt: "Que faço", es: ["que hago", "qué hago"] },
-            { pt: "Me contou", es: ["me contou", "me dijo", "me ha contado"] },
+            { pt: "Me contou", es: ["me contó", "me dijo", "me ha contado"] },
             { pt: "Inveja", es: ["envidia"] },
-            { pt: "Concordou", es: ["estuvo de acordo", "accedió"] },
+            { pt: "Concordou", es: ["estuvo de acuerdo", "accedió"] },
             { pt: "Conseguir", es: ["lograr", "conseguir"] },
             { pt: "Não conseguiu", es: ["no pudo", "no lo logró"] },
             { pt: "Nele", es: ["en él"] },
@@ -401,7 +387,7 @@
             { pt: "Ruim", es: ["mala", "malo"] },
             { pt: '"4"', es: ["cuatro", "cuarto"] },
             { pt: "Viajar", es: ["viajar"] },
-            { pt: "Trabalho", es: ["trabajo", "para el trabalho"] },
+            { pt: "Trabalho", es: ["trabajo", "para el trabajo"] },
             { pt: "Ontem", es: ["ayer"] },
             { pt: "Hoje", es: ["hoy"] },
             { pt: "Amanhã", es: ["mañana"] },
@@ -433,9 +419,6 @@
             { pt: "Saída", es: ["Salida"] }
         ];
 
-        let blocosPerfeitos = JSON.parse(localStorage.getItem('blocosPerfeitos')) || [];
-        let blocoAtualId = 0;
-
         let palavrasDoBlocoAtual = [];
         let listaRepescagem = [];
         let emRepescagem = false;
@@ -458,19 +441,10 @@
             
             for (let i = 0; i < bancoPalavrasCompleto.length; i += 10) {
                 let fim = Math.min(i + 10, bancoPalavrasCompleto.length);
-                let blocoIndex = i / 10;
-                
                 let btn = document.createElement('button');
-                
-                if (blocosPerfeitos.includes(blocoIndex)) {
-                    btn.className = 'btn-bloco bloco-perfeito';
-                    btn.innerHTML = `<span>Bloco ${blocoIndex + 1} (${i + 1} a ${fim})</span> <span>✓</span>`;
-                } else {
-                    btn.className = 'btn-bloco';
-                    btn.innerText = `Bloco ${blocoIndex + 1} (${i + 1} a ${fim})`;
-                }
-                
-                btn.onclick = () => prepararBloco(i, fim, blocoIndex);
+                btn.className = 'btn-bloco';
+                btn.innerText = `Bloco ${(i/10)+1} (${i+1} a ${fim})`;
+                btn.onclick = () => prepararBloco(i, fim);
                 blockList.appendChild(btn);
             }
         }
@@ -553,9 +527,8 @@
             return false;
         }
 
-        function prepararBloco(inicio, fim, blocoIndex) {
+        function prepararBloco(inicio, fim) {
             palavrasDoBlocoAtual = bancoPalavrasCompleto.slice(inicio, fim);
-            blocoAtualId = blocoIndex; 
             
             menuContainer.style.display = 'none';
             treinoArea.style.display = 'flex';
@@ -565,7 +538,7 @@
             container.style.justifyContent = 'center';
             card.innerText = "Clique em Iniciar";
             card.style.transform = 'none';
-            dicaRepescagem.style.display = 'none'; 
+            dicaRepescagem.style.display = 'none'; // Garante que começa escondida
             atualizarStatus(`Bloco selecionado. Clique em Iniciar.`);
         }
 
@@ -588,7 +561,6 @@
             limparFeedbackVisual();
             dicaRepescagem.style.display = 'none';
             
-            renderizarMenu(); 
             treinoArea.style.display = 'none';
             menuContainer.style.display = 'flex';
         }
@@ -601,7 +573,7 @@
 
             if (indicePalavraAtual >= listaAlvo.length) {
                 DesativarMicrofone();
-                dicaRepescagem.style.display = 'none'; 
+                dicaRepescagem.style.display = 'none'; // Esconde a dica na transição
 
                 if (!emRepescagem && listaRepescagem.length > 0) {
                     emRepescagem = true;
@@ -609,24 +581,16 @@
                     atualizarStatus("Fim do bloco! Iniciando repescagem das laranjas...");
                     setTimeout(proximaPalavra, 2500);
                 } else {
-                    if (!emRepescagem && listaRepescagem.length === 0) {
-                        if (!blocosPerfeitos.includes(blocoAtualId)) {
-                            blocosPerfeitos.push(blocoAtualId);
-                            localStorage.setItem('blocosPerfeitos', JSON.stringify(blocosPerfeitos));
-                        }
-                        atualizarStatus(`Bloco concluído sem erros! Perfeito!`);
-                    } else {
-                        atualizarStatus(`Bloco concluído com sucesso!`);
-                    }
-                    
+                    atualizarStatus(`Bloco concluído com sucesso!`);
                     setTimeout(() => pararJogo("Bloco concluído!"), 2000); 
                 }
                 return;
             }
 
             palavraAtual = listaAlvo[indicePalavraAtual];
-            card.innerText = palavraAtual.pt; // CORRIGIDO AQUI (Tinha um "b" antes)
+            card.innerText = palavraAtual.pt;
             
+            // Lógica para mostrar ou esconder a dica dependendo do modo
             if (emRepescagem) {
                 dicaRepescagem.innerText = palavraAtual.es.join(" / ");
                 dicaRepescagem.style.display = 'block';
